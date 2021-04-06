@@ -3,93 +3,72 @@ package httpUtil;
 import android.content.Context;
 import android.icu.text.StringSearch;
 
+import androidx.annotation.Nullable;
+
 import com.example.httputil.MainActivity;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.util.List;
 import java.util.Map;
 
 public class SendRequestForResponse {
-    String response;
-    int code;
-    Exception e1;
-    public static void get(String url, HttpListener listener, Context context){
-        SendRequestForResponse sendGetForResponse=new SendRequestForResponse();
-        sendGetForResponse.sendGetForResponse(url, listener, context);
-    }
-    public static void post(String url,Map<String,String> params, HttpListener listener, Context context){
-        SendRequestForResponse sendPostForResponse=new SendRequestForResponse();
-        sendPostForResponse.sendPostForResponse(url,params, listener, context);
-    }
-    public void sendGetForResponse(String url, HttpListener listener, Context context){
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                InputStream inputStream=null;
-                HttpURLConnection connection=GetHttpURLConnection.getHttpURLConnection(url);
-                try {
-                    connection.connect();
-                    inputStream=connection.getInputStream();
-                    code= connection.getResponseCode();
-                    response=convertResponseToString(inputStream);
-                    inputStream.close();
-                } catch (IOException e) {
-                    e1=e;
-                    e1.printStackTrace();
-                }
-            }
-        }).start();
-        ((MainActivity)context).runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                if(code==200 && response!=null){
-                    listener.onSuccess(response);
-                }else listener.onFailed(e1);
-            }
-        });
-    }
-    public void sendPostForResponse(String url, Map<String,String> params, HttpListener listener, Context context){
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                InputStream inputStream=null;
-                HttpURLConnection connection=GetHttpURLConnection.getHttpURLConnection(url);
-                connection.setDoOutput(true);
-                try {
-                    BuildParams.buildParams(connection.getOutputStream(),params);
-                    connection.connect();
-                    inputStream=connection.getInputStream();
-                    code= connection.getResponseCode();
-                    response=convertResponseToString(inputStream);
-                    inputStream.close();
-                } catch (IOException e) {
-                    e1=e;
-                    e1.printStackTrace();
-                }
-            }
-        }).start();
-        ((MainActivity)context).runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                if(code==200 && response!=null){
-                    listener.onSuccess(response);
-                }else listener.onFailed(e1);
-            }
-        });
+
+    public static void Request(String url, String method, @Nullable Map<String, String> params, HttpListener listener, Context context) {
+        new Thread(
+                () -> {
+                    HttpURLConnection connection = GetHttpURLConnection.getHttpURLConnection(url);
+                    connection.setDoOutput(true);
+                    InputStream inputStream = null;
+                    OutputStream outputStream = null;
+                    try {
+                        inputStream = connection.getInputStream();
+                        outputStream = connection.getOutputStream();
+                        if ("Post".equals(method)) {
+                            BuildParams.buildParams(outputStream, params);
+                        }
+                        connection.connect();
+                        int code = connection.getResponseCode();
+                        String response = convertResponseToString(inputStream);
+                        if (code == 200 && response != null && listener != null) {
+                            listener.onSuccess(response);
+                        }
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                        if (listener != null) {
+                            listener.onFailed(e);
+                        }
+                    } finally {
+                        try {
+                            if (inputStream != null) {
+                                inputStream.close();
+                            }
+                            if (outputStream != null) {
+                                outputStream.close();
+                            }
+                            if (connection != null) {
+                                connection.disconnect();
+                            }
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }).start();
     }
 
-    public String convertResponseToString(InputStream inputStream) throws IOException{
-        BufferedReader reader=new BufferedReader(new InputStreamReader(inputStream));
-        StringBuffer sb=new StringBuffer();
-        String line ;
-        while ((line =reader.readLine())!=null){
-            sb.append(line +"\n");
+
+    public static String convertResponseToString(InputStream inputStream) throws IOException {
+        BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
+        StringBuffer sb = new StringBuffer();
+        String line;
+        while ((line = reader.readLine()) != null) {
+            sb.append(line + "\n");
         }
-        String response=sb.toString();
+        String response = sb.toString();
         return response;
     }
 }
