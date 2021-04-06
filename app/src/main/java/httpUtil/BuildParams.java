@@ -1,5 +1,7 @@
 package httpUtil;
 
+import android.text.TextUtils;
+
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -13,6 +15,9 @@ public class BuildParams {
     public static void buildParams(OutputStream outputStream, Map<String,String> params) throws IOException {
         StringBuilder builder=new StringBuilder();
         for (Map.Entry<String,String> entry:params.entrySet()) {
+            if (!TextUtils.isEmpty(builder)){
+                builder.append("&");
+            }
             builder.append(URLEncoder.encode(entry.getKey(),"UTF-8"));
             builder.append("=");
             builder.append(URLEncoder.encode(entry.getValue(),"UTF-8"));
